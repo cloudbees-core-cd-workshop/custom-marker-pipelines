@@ -1,3 +1,22 @@
+#!groovy
+library 'cd-accel'
 pipeline {
-  
+  options {
+    buildDiscarder(logRotator(numToKeepStr: '5'))
+    skipDefaultCheckout() 
+    preserveStashes()
+  }
+  triggers {
+    eventTrigger simpleMatch('hello-world')
+  }
+  stages {
+    stage('Test') {
+      steps {
+        container('nodejs') {
+          sh 'npm install express'
+        }
+        stash name: 'app', includes: '*.js, Dockerfile'
+      }
+    }
+  }
 }
