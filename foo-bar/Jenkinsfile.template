@@ -1,12 +1,13 @@
 #!groovy
 library 'cd-accel'
 
-//shared library that tokenizes the Jenkin project full name resulting in IMAGE_NAME and IMAGE_TAG environment variables
+//shared library that tokenizes the Jenkin project full name resulting in:
+//IMAGE_REPO, IMAGE_NAME and IMAGE_TAG environment variables
 imageNameTag()
 
 echo "reading marker file as properties file"
 //define default values that may be overridden via the .foo-bar file
-def d = [tag: ${env.IMAGE_TAG}, pushBranch: 'false']
+def d = [name: ${env.IMAGE_NAME}, tag: ${env.IMAGE_TAG}, pushBranch: 'false']
 //use the Pipeline Utility Steps plugin readProperties step to read the .foo-bar properties 
 def props = readProperties defaults: d, file: '.foo-bar'
 
@@ -21,7 +22,7 @@ pipeline {
     preserveStashes()
   }
   triggers {
-    eventTrigger simpleMatch('hello-world')
+    eventTrigger simpleMatch('todo-api')
   }
   stages {
     stage('Test') {
@@ -39,6 +40,17 @@ pipeline {
           sh 'curl -i localhost:8080'
         }
         stash name: 'app', includes: '*.js, Dockerfile'
+      }
+    }
+    stage('Build and Push Image') {
+      dockerBuildPush(props['name'], props['tag']) {
+        unstash 'app'
+      }
+    }
+    stage('Deploy') {
+      agent none
+      steps {
+        kubeDeploy(${env.IMAGE_REPO}, props['name'], props['tag'])
       }
     }
   }
