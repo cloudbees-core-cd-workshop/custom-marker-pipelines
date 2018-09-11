@@ -1,2 +1,2 @@
 # custom-marker-pipelines
-A custom maker Pipeline Jenkinsfile(s) to be used as part of the CD Acceleration with CloudBees Workshop
+A repository of Pipeline Jenkinsfile(s) to be used as with Custom Marker files for the CD Acceleration with CloudBees Workshop.
