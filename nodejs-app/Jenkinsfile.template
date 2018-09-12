@@ -38,7 +38,6 @@ pipeline {
           env.IMAGE_TAG = props['tag']
         }
         container('nodejs') {
-          sh 'npm init -y'
           sh 'npm install express'
           sh 'node ./hello.js &'
         }
