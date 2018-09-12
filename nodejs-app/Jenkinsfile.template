@@ -34,6 +34,8 @@ pipeline {
           def d = [name: env.IMAGE_NAME, tag: env.IMAGE_TAG, pushBranch: 'false']
           //use the Pipeline Utility Steps plugin readProperties step to read the .foo-bar properties 
           def props = readProperties defaults: d, file: '.nodejs-app'
+          env.IMAGE_NAME = props['name']
+          env.IMAGE_TAG = props['tag']
         }
         container('nodejs') {
           sh 'npm init -y'
@@ -45,7 +47,7 @@ pipeline {
     }
     stage('Build and Push Image') {
       steps {
-        dockerBuildPush(props['name'], props['tag']) {
+        dockerBuildPush(env.IMAGE_NAME, env.IMAGE_TAG) {
           unstash 'app'
         }
       }
@@ -53,7 +55,7 @@ pipeline {
     stage('Deploy') {
       agent none
       steps {
-        kubeDeploy(env.IMAGE_REPO, props['name'], props['tag'])
+        kubeDeploy(env.IMAGE_REPO, env.IMAGE_NAME, env.IMAGE_TAG)
       }
     }
   }
