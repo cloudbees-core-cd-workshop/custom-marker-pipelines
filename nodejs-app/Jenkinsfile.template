@@ -1,15 +1,6 @@
 #!groovy
 library 'cd-accel'
-
-//shared library that tokenizes the Jenkin project full name resulting in:
-//IMAGE_REPO, IMAGE_NAME and IMAGE_TAG environment variables
-imageNameTag()
-
-echo "reading marker file as properties file"
-//define default values that may be overridden via the .foo-bar file
-def d = [name: ${env.IMAGE_NAME}, tag: ${env.IMAGE_TAG}, pushBranch: 'false']
-//use the Pipeline Utility Steps plugin readProperties step to read the .foo-bar properties 
-def props = readProperties defaults: d, file: '.foo-bar'
+def testPodYaml = libraryResource 'podtemplates/nodejs-app/test-pod.yml'
 
 pipeline {
   agent none
@@ -29,11 +20,21 @@ pipeline {
       agent {
         kubernetes {
           label 'nodejs-test'
-          yamlFile 'test-pod.yml'
+          yaml testPodYaml
         }
       }
       steps {
         checkout scm
+        //shared library that tokenizes the Jenkin project full name resulting in:
+        //IMAGE_REPO, IMAGE_NAME and IMAGE_TAG environment variables
+        imageNameTag()
+        echo "reading marker file as properties file"
+        script {
+          //define default values that may be overridden via the .foo-bar file
+          def d = [name: env.IMAGE_NAME, tag: env.IMAGE_TAG, pushBranch: 'false']
+          //use the Pipeline Utility Steps plugin readProperties step to read the .foo-bar properties 
+          def props = readProperties defaults: d, file: '.foo-bar'
+        }
         container('nodejs') {
           sh 'npm install express'
           sh 'node ./hello.js &'
