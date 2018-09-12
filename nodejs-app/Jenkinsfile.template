@@ -36,6 +36,7 @@ pipeline {
           def props = readProperties defaults: d, file: '.foo-bar'
         }
         container('nodejs') {
+          sh 'touch package.json'
           sh 'npm install express'
           sh 'node ./hello.js &'
           sh 'curl -i localhost:8080'
