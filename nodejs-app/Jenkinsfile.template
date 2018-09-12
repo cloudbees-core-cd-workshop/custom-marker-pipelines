@@ -33,7 +33,7 @@ pipeline {
           //define default values that may be overridden via the .foo-bar file
           def d = [name: env.IMAGE_NAME, tag: env.IMAGE_TAG, pushBranch: 'false']
           //use the Pipeline Utility Steps plugin readProperties step to read the .foo-bar properties 
-          def props = readProperties defaults: d, file: '.foo-bar'
+          def props = readProperties defaults: d, file: '.nodejs-app'
         }
         container('nodejs') {
           sh 'npm init -y'
