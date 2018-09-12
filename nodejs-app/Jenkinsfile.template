@@ -41,7 +41,7 @@ pipeline {
           sh 'npm install express'
           sh 'node ./hello.js &'
         }
-        stash name: 'app', includes: '*.js, Dockerfile'
+        stash name: 'app', includes: '*.js, views/*, Dockerfile'
       }
     }
     stage('Build and Push Image') {
