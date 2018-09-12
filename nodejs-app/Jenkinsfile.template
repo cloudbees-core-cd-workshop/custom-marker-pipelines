@@ -43,14 +43,16 @@ pipeline {
       }
     }
     stage('Build and Push Image') {
-      dockerBuildPush(props['name'], props['tag']) {
-        unstash 'app'
+      steps {
+        dockerBuildPush(props['name'], props['tag']) {
+          unstash 'app'
+        }
       }
     }
     stage('Deploy') {
       agent none
       steps {
-        kubeDeploy(${env.IMAGE_REPO}, props['name'], props['tag'])
+        kubeDeploy(env.IMAGE_REPO, props['name'], props['tag'])
       }
     }
   }
