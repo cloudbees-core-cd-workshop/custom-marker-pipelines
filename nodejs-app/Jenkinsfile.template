@@ -43,7 +43,7 @@ pipeline {
           sh 'node ./hello.js &'
         }
         sh 'ls -la'
-        stash name: 'app', includes: '*.js, public/*, views/*, Dockerfile'
+        stash name: 'app', includes: '*.js, public/**, views/*, Dockerfile'
       }
     }
     stage('Build and Push Image') {
