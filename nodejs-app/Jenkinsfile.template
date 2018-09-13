@@ -42,6 +42,7 @@ pipeline {
           sh 'npm install express'
           sh 'node ./hello.js &'
         }
+        sh 'ls -la'
         stash name: 'app', includes: '*.js, public/*, views/*, Dockerfile'
       }
     }
