@@ -25,7 +25,7 @@ pipeline {
       }
       steps {
         checkout scm
-        gitShortCommit()
+        gitShortCommitAuthor()
         //shared library that tokenizes the Jenkin project full name resulting in:
         //IMAGE_REPO, IMAGE_NAME and IMAGE_TAG environment variables
         imageNameTag()
