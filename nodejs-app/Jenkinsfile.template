@@ -42,7 +42,17 @@ pipeline {
           sh 'npm install express'
           sh 'node ./hello.js &'
         }
-        stash name: 'app', includes: '*.js, public/**, views/*, Dockerfile'
+        container('testcafe') {
+          sh '/opt/testcafe/docker/testcafe-docker.sh "chromium --no-sandbox" tests/*.js -r xunit:res.xml'
+        }
+      }
+      post {
+        success {
+          stash name: 'app', includes: '*.js, public/**, views/*, Dockerfile'
+        }
+        always {
+          junit 'res.xml'
+        }
       }
     }
     stage('Build and Push Image') {
