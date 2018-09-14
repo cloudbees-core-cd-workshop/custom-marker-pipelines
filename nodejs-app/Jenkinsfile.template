@@ -1,25 +1,23 @@
 pipeline {
-   agent { label 'nodejs-app' }
-   options { 
-      buildDiscarder(logRotator(numToKeepStr: '2'))
-   }
-   stages {
-      stage('Test') {
-        steps {
-          container('nodejs') {
-            echo 'Hello World!'   
-            sh 'node --version'
-          }
+  agent none
+  stages {
+    stage('Test') {
+      agent { label 'nodejs-app' }
+      steps {
+        container('nodejs') {
+          echo 'Hello World!'   
+          sh 'node --version'
         }
       }
-      stage('Build and Push Image') {
-         when {
-            beforeAgent true
-            branch 'master'
-         }
-         steps {
-            echo "TODO - build and push image"
-         }
+    }
+    stage('Build and Push Image') {
+      when {
+        beforeAgent true
+        branch 'master'
       }
-   }
+      steps {
+        echo "TODO - build and push image"
+      }
+    }
+  }
 }
