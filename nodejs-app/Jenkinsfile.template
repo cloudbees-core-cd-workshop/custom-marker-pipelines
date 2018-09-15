@@ -7,19 +7,76 @@ pipeline {
   }
   stages {
     stage('Test') {
-      agent { label 'nodejs-app' }
-      steps {
-        checkout scm
-        container('nodejs') {
-          echo 'Hello World!'   
-          sh 'node --version'
+      agent {
+        kubernetes {
+          label 'nodejs-app-inline'
+          yaml """
+kind: Pod
+metadata:
+  name: nodejs-app
+spec:
+  containers:
+  - name: nodejs
+    image: node:10.9.0-alpine
+    command:
+    - cat
+    tty: true
+  - name: testcafe-chrome
+    image: 946759952272.dkr.ecr.us-east-1.amazonaws.com/kypseli/testcafe:alpha-1
+    command:
+    - cat
+    tty: true
+  - name: testcafe-firefox
+    image: 946759952272.dkr.ecr.us-east-1.amazonaws.com/kypseli/testcafe:alpha-1
+    command:
+    - cat
+    tty: true
+    ports:
+    - name: firefox1
+      containerPort: 1339
+    - name: firefox2
+      containerPort: 1340
+          """
+        }
+      }
+      stages {
+        stage('App Setup') {
+          steps {
+            checkout scm
+            container('nodejs') {
+              sh '''
+                npm install express
+                npm install pug --save
+                node ./hello.js &
+              '''
+            }
+          }
+        }
+        stage('Browser Tests') {
+          steps {
+            script {
+              parallel chrome: {
+                container('testcafe-chrome') {
+                  sh '/opt/testcafe/docker/testcafe-docker.sh "chromium --no-sandbox" tests/*.js -r xunit:res-chrome.xml'
+                }
+              }, 
+              firefox: {
+                  container('testcafe-firefox') {
+                    sh '/opt/testcafe/docker/testcafe-docker.sh firefox --ports 1339,1340 tests/*.js -r xunit:res-firefox.xml'
+                  }
+              }
+            }
+          }
         }
       }
       post {
         success {
           stash name: 'app', includes: '*.js, public/**, views/*, Dockerfile'
         }
-      }
+        always {
+          junit 'res*.xml'
+        }
+      }    
     }
     stage('Build and Push Image') {
       agent any
