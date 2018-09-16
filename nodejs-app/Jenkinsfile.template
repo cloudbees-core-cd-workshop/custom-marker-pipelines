@@ -19,34 +19,38 @@ pipeline {
     stage('Test') {
       agent {
         kubernetes {
-          label 'nodejs-test'
+          label 'nodejs-app-inline'
           yaml testPodYaml
         }
       }
-      steps {
-        checkout scm
-        gitShortCommitAuthor()
-        //shared library that tokenizes the Jenkin project full name resulting in:
-        //IMAGE_REPO, IMAGE_NAME and IMAGE_TAG environment variables
-        imageNameTag()
-        echo "reading marker file as properties file"
-        script {
-          //define default values that may be overridden via the .foo-bar file
-          def d = [name: env.IMAGE_NAME, tag: env.IMAGE_TAG, pushBranch: 'false']
-          //use the Pipeline Utility Steps plugin readProperties step to read the .foo-bar properties 
-          def props = readProperties defaults: d, file: '.nodejs-app'
-          env.IMAGE_NAME = props['name']
-          env.IMAGE_TAG = props['tag']
+      stages {
+        stage('App Setup') {
+          steps {
+            checkout scm
+            defineProps('.nodejs-app', [npmPackages: 'express pug'])
+            container('nodejs') {
+              sh """
+                npm i -S ${npmPackages}
+                node ./hello.js &
+              """
+            }
+          }
         }
-        container('nodejs') {
-          sh '''
-            npm install express
-            npm install pug --save
-            node ./hello.js &
-          '''
-        }
-        container('testcafe') {
-          sh '/opt/testcafe/docker/testcafe-docker.sh "chromium --no-sandbox" tests/*.js -r xunit:res.xml'
+        stage('Browser Tests') {
+          steps {
+            script {
+              parallel chrome: {
+                container('testcafe-chrome') {
+                  sh '/opt/testcafe/docker/testcafe-docker.sh "chromium --no-sandbox" tests/*.js -r xunit:res-chrome.xml'
+                }
+              }, 
+              firefox: {
+                  container('testcafe-firefox') {
+                    sh '/opt/testcafe/docker/testcafe-docker.sh firefox --ports 1339,1340 tests/*.js -r xunit:res-firefox.xml'
+                  }
+              }
+            }
+          }
         }
       }
       post {
@@ -54,9 +58,9 @@ pipeline {
           stash name: 'app', includes: '*.js, public/**, views/*, Dockerfile'
         }
         always {
-          junit 'res.xml'
+          junit 'res*.xml'
         }
-      }
+      }    
     }
     stage('Build and Push Image') {
       steps {
