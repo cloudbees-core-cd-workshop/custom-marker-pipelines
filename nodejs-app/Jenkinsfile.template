@@ -4,13 +4,10 @@ def testPodYaml = libraryResource 'podtemplates/nodejs-app/test-pod.yml'
 
 pipeline {
   agent none
-  options {
-    buildDiscarder(logRotator(numToKeepStr: '5'))
-    //set 1 hour timeout, as the job should never take longer than 1 hour
-    timeout(time: 1, unit: 'HOURS')
-    //be default Declarative Pipelines do a `checkout scm` for every stage, this disables that
-    skipDefaultCheckout() 
-    preserveStashes()
+  options { 
+    buildDiscarder(logRotator(numToKeepStr: '2'))
+    skipDefaultCheckout true
+    preserveStashes(buildCount: 2)
   }
   triggers {
     eventTrigger simpleMatch('todo-api')
