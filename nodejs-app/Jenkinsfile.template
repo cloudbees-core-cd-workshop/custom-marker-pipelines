@@ -1,7 +1,6 @@
 #!groovy
 library 'cd-accel'
 def testPodYaml = libraryResource 'podtemplates/nodejs-app/test-pod.yml'
-
 pipeline {
   agent none
   options { 
