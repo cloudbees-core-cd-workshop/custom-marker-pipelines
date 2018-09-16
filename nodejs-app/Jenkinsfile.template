@@ -67,7 +67,13 @@ pipeline {
       }
     }
     stage('Deploy') {
-      agent none
+      options {
+        timeout(time: 60, unit: 'SECONDS') 
+      }
+      input {
+        message "Should we deploy?"
+        submitterParameter "APPROVER"
+      }
       steps {
         kubeDeploy(env.IMAGE_REPO, env.IMAGE_NAME, env.IMAGE_TAG)
       }
