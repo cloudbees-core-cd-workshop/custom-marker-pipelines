@@ -10,7 +10,7 @@ pipeline {
     preserveStashes(buildCount: 2)
   }
   triggers {
-    eventTrigger simpleMatch('todo-api')
+    eventTrigger simpleMatch('hello-api')
   }
   stages {
     stage('Test') {
