@@ -74,7 +74,7 @@ pipeline {
         submitterParameter "APPROVER"
       }
       steps {
-        kubeDeploy(env.IMAGE_REPO, env.IMAGE_NAME, env.IMAGE_TAG)
+        kubeDeploy(env.IMAGE_NAME, env.IMAGE_TAG)
       }
     }
   }
