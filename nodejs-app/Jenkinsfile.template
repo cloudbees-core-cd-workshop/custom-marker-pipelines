@@ -78,31 +78,31 @@ spec:
         }
       }    
     }
-    stage('Build and Push Image') {
-      agent any
+    stage('Build and Deploy') {
       when {
         beforeAgent true
         branch 'master'
-      }
-      steps {
-        echo "TODO - build and push image"
-        unstash 'app'
-      }
-    }
-    stage('Deploy') {
-      when {
-        beforeAgent true
-        branch 'master'
-      }
-      options {
-        timeout(time: 60, unit: 'SECONDS') 
-      }
-      input {
-        message "Should we deploy?"
-        submitterParameter "APPROVER"
-      }
-      steps {
-        echo "Continuing with deployment - approved by ${APPROVER}"
+      }  
+      stages {
+        stage('Build and Push Image') {
+          agent any
+          steps {
+            echo "TODO - build and push image"
+            unstash 'app'
+          }
+        }
+        stage('Deploy') {
+          options {
+            timeout(time: 60, unit: 'SECONDS') 
+          }
+          input {
+            message "Should we deploy?"
+            submitterParameter "APPROVER"
+          }
+          steps {
+            echo "Continuing with deployment - approved by ${APPROVER}"
+          }
+        }
       }
     }
   }
