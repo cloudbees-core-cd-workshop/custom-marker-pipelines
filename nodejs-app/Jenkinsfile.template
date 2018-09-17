@@ -59,6 +59,10 @@ pipeline {
       }    
     }
     stage('Build and Push Image') {
+      when {
+        beforeAgent true
+        branch 'master'
+      }
       steps {
         dockerBuildPush(env.IMAGE_NAME, env.IMAGE_TAG) {
           unstash 'app'
@@ -66,6 +70,10 @@ pipeline {
       }
     }
     stage('Deploy') {
+      when {
+        beforeAgent true
+        branch 'master'
+      }
       options {
         timeout(time: 60, unit: 'SECONDS') 
       }
