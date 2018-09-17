@@ -90,6 +90,10 @@ spec:
       }
     }
     stage('Deploy') {
+      when {
+        beforeAgent true
+        branch 'master'
+      }
       options {
         timeout(time: 60, unit: 'SECONDS') 
       }
