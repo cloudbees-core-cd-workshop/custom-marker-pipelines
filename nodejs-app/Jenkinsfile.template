@@ -3,7 +3,6 @@ pipeline {
   options { 
     buildDiscarder(logRotator(numToKeepStr: '2'))
     skipDefaultCheckout true
-    preserveStashes(buildCount: 2)
   }
   stages {
     stage('Test') {
@@ -15,24 +14,26 @@ pipeline {
           sh 'node --version'
         }
       }
+    }
+    stage('Build and Push Image') {
+      when {
+         beforeAgent true
+         branch 'master'
+      }
+      steps {
+         echo "TODO - build and push image"
+      }
       post {
         success {
-          stash name: 'app', includes: '*.js, public/**, views/*, Dockerfile'
+          slackSend "${JOB_NAME} pipeline job is awaiting approval at: ${RUN_DISPLAY_URL}"
         }
       }
     }
-    stage('Build and Push Image') {
-      agent any
+    stage('Deploy') {
       when {
         beforeAgent true
         branch 'master'
       }
-      steps {
-        echo "TODO - build and push image"
-        unstash 'app'
-      }
-    }
-    stage('Deploy') {
       options {
         timeout(time: 60, unit: 'SECONDS') 
       }
@@ -43,6 +44,6 @@ pipeline {
       steps {
         echo "Continuing with deployment - approved by ${APPROVER}"
       }
-    }
+    }   
   }
 }
