@@ -1,6 +1,6 @@
-#!groovy
-library 'cd-accel'
-def testPodYaml = libraryResource 'podtemplates/nodejs-app/test-pod.yml'
+library 'cd-accel@completed'
+def testPodYaml = libraryResource 'podtemplates/nodejs-app/web-test-pod.yml'
+def loadTestPodYaml = libraryResource 'podtemplates/nodejs-app/load-test-pod.yml'
 pipeline {
   agent none
   options { 
@@ -8,55 +8,76 @@ pipeline {
     skipDefaultCheckout true
     preserveStashes(buildCount: 2)
   }
-  triggers {
-    eventTrigger simpleMatch('hello-api')
-  }
   stages {
-    stage('Test') {
-      agent {
-        kubernetes {
-          label 'nodejs-app-inline'
-          yaml testPodYaml
-        }
-      }
-      stages {
-        stage('App Setup') {
-          steps {
-            checkout scm
-            defineProps('.nodejs-app', [npmPackages: 'express pug'])
-            container('nodejs') {
-              sh """
-                npm i -S ${npmPackages}
-                node ./hello.js &
-              """
+    stage('Tests') {
+      parallel {
+        stage('Web Tests') {
+          agent {
+            kubernetes {
+              label 'nodejs-testcafe'
+              yaml testPodYaml
             }
           }
-        }
-        stage('Browser Tests') {
-          steps {
-            script {
-              parallel chrome: {
-                container('testcafe-chrome') {
-                  sh '/opt/testcafe/docker/testcafe-docker.sh "chromium --no-sandbox" tests/*.js -r xunit:res-chrome.xml'
+          stages {
+            stage('Nodejs Setup') {
+              steps {
+                checkout scm
+                defineProps('.nodejs-app', [npmPackages: 'express pug'])            
+                container('nodejs') {
+                  sh """
+                    npm i -S ${npmPackages}
+                    node ./hello.js &
+                  """
                 }
-              }, 
-              firefox: {
-                  container('testcafe-firefox') {
-                    sh '/opt/testcafe/docker/testcafe-docker.sh firefox --ports 1339,1340 tests/*.js -r xunit:res-firefox.xml'
-                  }
+              }   
+            }
+            stage('Testcafe') {
+              steps {
+                container('testcafe') {
+                  sh '/opt/testcafe/docker/testcafe-docker.sh "chromium --no-sandbox" tests/*.js -r xunit:res.xml'
+                }
+              }   
+            }
+          }  
+          post {
+            success {
+              stash name: 'app', includes: '*.js, public/**, views/*, Dockerfile'
+            }
+            always {
+              junit 'res.xml'
+            }
+          } 
+        }
+        stage('Load Test') {
+          agent {
+            kubernetes {
+              label 'nodejs-ab'
+              yaml loadTestPodYaml
+            }
+          }
+          stages {
+            stage('Nodejs Setup') {
+              steps {
+                checkout scm
+                container('nodejs') {
+                  sh '''
+                    npm install express
+                    npm install pug --save
+                    node ./hello.js &
+                  '''
+                }
+              }   
+            }
+            stage('Apache Benchmark') {  
+              steps {
+                container('apache-benchmark') {
+                  sh 'ab -n 10 -c 4 -s 5 http://localhost:8080/'
+                }
               }
             }
           }
         }
       }
-      post {
-        success {
-          stash name: 'app', includes: '*.js, public/**, views/*, Dockerfile'
-        }
-        always {
-          junit 'res*.xml'
-        }
-      }    
     }
     stage('Build and Push Image') {
       when {
@@ -66,6 +87,11 @@ pipeline {
       steps {
         dockerBuildPush(env.IMAGE_NAME, env.IMAGE_TAG) {
           unstash 'app'
+        }
+      }
+      post {
+        success {
+          slackSend "${JOB_NAME} pipeline job is awaiting approval at: ${RUN_DISPLAY_URL}"
         }
       }
     }
@@ -84,6 +110,6 @@ pipeline {
       steps {
         kubeDeploy(env.IMAGE_NAME, env.IMAGE_TAG)
       }
-    }
+    }   
   }
 }
