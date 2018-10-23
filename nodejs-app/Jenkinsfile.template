@@ -1,3 +1,6 @@
+library 'cd-accel'
+def testPodYaml = libraryResource 'podtemplates/nodejs-app/web-test-pod.yml'
+def loadTestPodYaml = libraryResource 'podtemplates/nodejs-app/load-test-pod.yml'
 pipeline {
   agent none
   options { 
@@ -6,87 +9,90 @@ pipeline {
     preserveStashes(buildCount: 2)
   }
   stages {
-    stage('Test') {
-      agent {
-        kubernetes {
-          label 'nodejs-app-inline'
-          yaml """
-kind: Pod
-metadata:
-  name: nodejs-app
-spec:
-  containers:
-  - name: nodejs
-    image: node:10.9.0-alpine
-    command:
-    - cat
-    tty: true
-  - name: testcafe-chrome
-    image: 946759952272.dkr.ecr.us-east-1.amazonaws.com/kypseli/testcafe:alpha-1
-    command:
-    - cat
-    tty: true
-  - name: testcafe-firefox
-    image: 946759952272.dkr.ecr.us-east-1.amazonaws.com/kypseli/testcafe:alpha-1
-    command:
-    - cat
-    tty: true
-    ports:
-    - name: firefox1
-      containerPort: 1339
-    - name: firefox2
-      containerPort: 1340
-          """
-        }
-      }
-      stages {
-        stage('App Setup') {
-          steps {
-            checkout scm
-            container('nodejs') {
-              sh '''
-                npm install express
-                npm install pug --save
-                node ./hello.js &
-              '''
+    stage('Tests') {
+      parallel {
+        stage('Web Tests') {
+          agent {
+            kubernetes {
+              label 'nodejs-testcafe'
+              yaml testPodYaml
             }
           }
-        }
-        stage('Browser Tests') {
-          steps {
-            script {
-              parallel chrome: {
-                container('testcafe-chrome') {
-                  sh '/opt/testcafe/docker/testcafe-docker.sh "chromium --no-sandbox" tests/*.js -r xunit:res-chrome.xml'
+          stages {
+            stage('Nodejs Setup') {
+              steps {
+                checkout scm
+                container('nodejs') {
+                  sh '''
+                    npm install express
+                    npm install pug --save
+                    node ./hello.js &
+                  '''
                 }
-              }, 
-              firefox: {
-                  container('testcafe-firefox') {
-                    sh '/opt/testcafe/docker/testcafe-docker.sh firefox --ports 1339,1340 tests/*.js -r xunit:res-firefox.xml'
-                  }
+              }   
+            }
+            stage('Testcafe') {
+              steps {
+                container('testcafe') {
+                  sh '/opt/testcafe/docker/testcafe-docker.sh "chromium --no-sandbox" tests/*.js -r xunit:res.xml'
+                }
+              }   
+            }
+          }  
+          post {
+            success {
+              stash name: 'app', includes: '*.js, public/**, views/*, Dockerfile'
+            }
+            always {
+              junit 'res.xml'
+            }
+          } 
+        }
+        stage('Load Test') {
+          agent {
+            kubernetes {
+              label 'nodejs-ab'
+              yaml loadTestPodYaml
+            }
+          }
+          stages {
+            stage('Nodejs Setup') {
+              steps {
+                checkout scm
+                container('nodejs') {
+                  sh '''
+                    npm install express
+                    npm install pug --save
+                    node ./hello.js &
+                  '''
+                }
+              }   
+            }
+            stage('Apache Benchmark') {  
+              steps {
+                container('apache-benchmark') {
+                  sh 'ab -n 10 -c 4 -s 5 http://localhost:8080/'
+                }
               }
             }
           }
         }
       }
-      post {
-        success {
-          stash name: 'app', includes: '*.js, public/**, views/*, Dockerfile'
-        }
-        always {
-          junit 'res*.xml'
-        }
-      }    
     }
     stage('Build and Push Image') {
       agent any
       when {
-        beforeAgent true
-        branch 'master'
+         beforeAgent true
+         branch 'master'
       }
       steps {
-        echo "TODO - build and push image"
-        unstash 'app'
+         echo "TODO - build and push image"
+         unstash 'app'
+      }
+      post {
+        success {
+          slackSend "${JOB_NAME} pipeline job is awaiting approval at: ${RUN_DISPLAY_URL}"
+        }
       }
     }
     stage('Deploy') {
@@ -104,6 +110,6 @@ spec:
       steps {
         echo "Continuing with deployment - approved by ${APPROVER}"
       }
-    }
+    }   
   }
 }
