@@ -9,7 +9,9 @@ pipeline {
       steps {
         container('nodejs') {
           echo 'Hello World!'   
-          sh "printenv"
+          sh """
+            printenv
+          ""
         }
       }
     }
