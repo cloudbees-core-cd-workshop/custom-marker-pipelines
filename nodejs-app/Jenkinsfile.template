@@ -12,6 +12,7 @@ pipeline {
           sh """
             printenv
             whoami
+	    echo hello
           ""
         }
       }
